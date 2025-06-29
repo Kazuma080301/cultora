@@ -15,6 +15,7 @@ const generateOtp = async (user, purpose) => {
 };
 
 const verifyOtp = async (user, purpose, code) => {
+  console.log(user, purpose, code)
   const otp = await Otp.findOne({
     entityType: user.constructor.modelName,
     entityId: user._id,

@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const sendEmail = require("../services/emailService");
 const { generateOtp, verifyOtp } = require("../services/otpService");
 const { register } = require("../services/authService");
+const { createToken } = require("../services/sessionService");
 const User = require("../models/User");
 const PendingUser = require("../models/PendingUser");
 
@@ -57,10 +58,11 @@ const signup = async (req, res) => {
 
 const verifySignup = async (req, res) => {
   try {
-    const { email, code, deviceId } = req.body;
+    console.log(req.body)
+    const { email, otp, deviceId } = req.body;
 
     const pendingUser = await PendingUser.findOne({ email });
-    if (await verifyOtp(pendingUser, "signup", code)) {
+    if (await verifyOtp(pendingUser, "signup", otp)) {
       token = await register(pendingUser, deviceId);
       return res.json({ messge: "Signing In", token: token });
     } else {
@@ -71,7 +73,47 @@ const verifySignup = async (req, res) => {
   }
 };
 
+const signin = async (req, res) => {
+  try {
+    const { email, password, deviceId } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    token = await createToken(deviceId, user);
+    res.json({
+      message: "Login successful",
+      token: token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const guestLogin = async (req, res) => {
+  const { deviceId } = req.body;
+  token = await createToken(deviceId);
+  res.json({
+    message: "Signing In",
+    token: token,
+  });
+};
+
 module.exports = {
   signup,
-  verifySignup
+  verifySignup,
+  signin,
+  guestLogin,
 };
